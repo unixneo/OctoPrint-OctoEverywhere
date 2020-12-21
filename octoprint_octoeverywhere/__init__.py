@@ -119,6 +119,15 @@ class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
 		self._settings.save(force=True)
 		return currentId
 
+	# Sends a UI popup message for various uses.
+	# title - string, the title text.
+	# text  - string, the message.
+	# type  - string, [notice, info, success, error] the type of message shown.
+	# audioHide - bool, indicates if the message should auto hide.
+	def ShowUiPopup(self, title, text, type, autoHide):
+		data = {"title": title, "text": text, "type": type, "autoHide": autoHide}
+		self._plugin_manager.send_plugin_message("octoeverywhere_ui_popup_msg", data)
+
 	# Our main worker
 	def main(self):
 		self._logger.info("Main thread starting")
@@ -133,7 +142,7 @@ class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
 
 			# Run!
 			OctoEverywhereWsUri = "wss://octoeverywhere.com/octoclientws"
-			oe = OctoEverywhere(OctoEverywhereWsUri, self.OctoPrintLocalPort, mjpgStreamerLocalPort, printerId, self._logger)
+			oe = OctoEverywhere(OctoEverywhereWsUri, self.OctoPrintLocalPort, mjpgStreamerLocalPort, printerId, self._logger, self)
 			oe.RunBlocking()		
 		except Exception as e:
 			self._logger.error("Exception thrown out of main runner. "+str(e))

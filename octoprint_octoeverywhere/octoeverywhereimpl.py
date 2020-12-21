@@ -11,6 +11,7 @@ class OctoEverywhere:
     OctoPrintLocalPort = 80
     MjpgStreamerLocalPort = 8080
     Logger = None
+    UiPopupInvoker = None
     Endpoint = ""
     PrinterId = ""
     OctoSession = None
@@ -18,18 +19,19 @@ class OctoEverywhere:
     Ws = None
     WsConnectBackOffSec = 5
 
-    def __init__(self, endpoint, octoPrintLocalPort, mjpgStreamerLocalPort, printerId, logger):
+    def __init__(self, endpoint, octoPrintLocalPort, mjpgStreamerLocalPort, printerId, logger, uiPopupInvoker):
         self.Logger = logger
         self.PrinterId = printerId
         self.Endpoint = endpoint
         self.OctoPrintLocalPort = octoPrintLocalPort
         self.MjpgStreamerLocalPort = mjpgStreamerLocalPort
+        self.UiPopupInvoker = uiPopupInvoker
 
     def OnOpened(self, ws):
         self.Logger.info("Connected To Octo Everywhere. Starting handshake...")
 
         # Create a new session for this websocket connection.
-        self.OctoSession = OctoSession(self, self.Logger, self.PrinterId, self.OctoPrintLocalPort, self.MjpgStreamerLocalPort)
+        self.OctoSession = OctoSession(self, self.Logger, self.PrinterId, self.OctoPrintLocalPort, self.MjpgStreamerLocalPort, self.UiPopupInvoker)
         self.OctoSession.StartHandshake()
 
     def OnHandshakeComplete(self):

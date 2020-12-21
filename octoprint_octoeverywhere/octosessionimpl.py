@@ -135,6 +135,11 @@ class OctoMessageThread(threading.Thread):
                 self.OctoSession.HandleHandshakeAck(msg)
                 return
 
+            # If this is a client notification, handle it.
+            if msg["Notification"] != None :
+                self.OctoSession.HandleClientNotification(msg)
+                return
+
             # Handle the webrequest.
             if msg["IsHttpRequest"] != None and msg["IsHttpRequest"]:
                 self.OctoSession.HandleWebRequest(msg)
@@ -153,6 +158,7 @@ class OctoMessageThread(threading.Thread):
 
 class OctoSession:
     Logger = None
+    UiPopupInvoker = None
     OctoStream = None
     OctoPrintLocalPort = 80
     MjpgStreamerLocalPort = 8080
@@ -160,12 +166,13 @@ class OctoSession:
     LocalHostAddress = "127.0.0.1"
     ActiveProxySockets = {}
 
-    def __init__(self, octoStream, logger, printerId, octoPrintLocalPort, mjpgStreamerLocalPort):
+    def __init__(self, octoStream, logger, printerId, octoPrintLocalPort, mjpgStreamerLocalPort, uiPopupInvoker):
         self.Logger = logger
         self.OctoStream = octoStream
         self.PrinterId = printerId
         self.OctoPrintLocalPort = octoPrintLocalPort
         self.MjpgStreamerLocalPort = mjpgStreamerLocalPort
+        self.UiPopupInvoker = uiPopupInvoker
 
     def OnSessionError(self, backoffModifierSec):
         # Just forward
@@ -175,6 +182,16 @@ class OctoSession:
         # Encode and send the message.
         encodedMsg = encodeOctoStreamMsg(msg)
         self.OctoStream.SendMsg(encodedMsg)
+
+    def HandleClientNotification(self, msg): 
+        try:
+            title = msg["Notification"]["Title"]
+            text = msg["Notification"]["Text"]
+            type = msg["Notification"]["Type"]
+            autoHide = msg["Notification"]["AutoHide"]
+            self.UiPopupInvoker.ShowUiPopup(title, text, type, autoHide)
+        except Exception as e:
+            self.Logger.error("Failed to handle octo notification message. " + str(e))
 
     def HandleHandshakeAck(self, msg):
         # Handles a handshake ack message.
