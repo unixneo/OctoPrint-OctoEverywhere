@@ -187,7 +187,7 @@ class OctoSession:
         try:
             title = msg["Notification"]["Title"]
             text = msg["Notification"]["Text"]
-            type = msg["Notification"]["Type"]
+            type = msg["Notification"]["Type"].lower()
             autoHide = msg["Notification"]["AutoHide"]
             self.UiPopupInvoker.ShowUiPopup(title, text, type, autoHide)
         except Exception as e:
