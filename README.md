@@ -1,6 +1,6 @@
 # OctoEverywhere!
 
-An [OctoPrint](https://octoprint.org/) plugin that gives you **complete, free, and secure** access to your OctoPrint instance (plugins, camera, remote control, and more) from everywhere! 
+An [OctoPrint](https://octoprint.org/) plugin that gives you **complete, free, and secure access to your OctoPrint instance** (plugins, camera, remote control, and more) from everywhere! 
 
 OctoEverywhere allows you access to the full OctoPrint web portal on all of your devices and also with your favorite 3rd party OctoPrint apps!
 
