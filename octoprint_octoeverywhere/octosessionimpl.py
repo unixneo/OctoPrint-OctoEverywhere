@@ -136,7 +136,7 @@ class OctoMessageThread(threading.Thread):
                 return
 
             # If this is a client notification, handle it.
-            if msg["Notification"] != None :
+            if "Notification" in msg and msg["Notification"] != None :
                 self.OctoSession.HandleClientNotification(msg)
                 return
 
