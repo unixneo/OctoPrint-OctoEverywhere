@@ -29,7 +29,9 @@ $(function() {
                 'title': data.title,
                 'text':  data.text,
                 'type':  data.type,
-                "hide":  data.autoHide
+                'hide':  data.autoHide,
+                'delay': 10000,
+                'mouseReset' : true
             });
         }
     }
