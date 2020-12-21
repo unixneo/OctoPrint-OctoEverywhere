@@ -27,23 +27,14 @@ class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
 
 	# Return true if the wizard needs to be shown.
 	def is_wizard_required(self):
-		# TODO - for now disable the wizard since for some users it got them stuck
-		# with no way to dismiss it.
-		return False
-		#return self._settings.get(["HasSeenBasicWizard"]) is None
+		return True
 
-	# Called when the wizard is closed. Indicates if the UI was seen or not.
-	def on_wizard_finish(self, handled):
-		self._settings.set(["HasSeenBasicWizard"], True, force=True)
-		self._settings.save(force=True)
-
-	# Incrment this if we need to pop the wizard again.
+	# Increment this if we need to pop the wizard again.
 	def get_wizard_version(self):
 		return 2
 
-	# Called to get details for the wizard page.
 	def get_wizard_details(self):
-		return self.get_template_vars()
+		return {"AddPrinterUrl": self._settings.get(["AddPrinterUrl"])}
 
 	# Return the default settings.
 	def get_settings_defaults(self):
@@ -131,6 +122,7 @@ class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
 	# Our main worker
 	def main(self):
 		self._logger.info("Main thread starting")
+
 		try:
 			# Get or create a printer id.
 			printerId = self.EnsureAndGetPrinterId()
