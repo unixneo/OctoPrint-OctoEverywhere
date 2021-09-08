@@ -11,6 +11,7 @@ import flask
 
 from .octoeverywhereimpl import OctoEverywhere
 from .octohttprequest import OctoHttpRequest
+from .threaddebug import ThreadDebug
 import octoprint.plugin
 
 class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
@@ -96,6 +97,11 @@ class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
         # Ensure they key is created here, so make sure that it is always created before
         # Any of the UI queries for it.
         self.EnsureAndGetPrinterId()
+
+        # TODO - Remove me!
+        threadDebugger = ThreadDebug()
+        # Run every 5 mintues.
+        threadDebugger.Start(self._logger, 5 * 60)
 
     # Call when the system is ready and running
     def on_after_startup(self):
