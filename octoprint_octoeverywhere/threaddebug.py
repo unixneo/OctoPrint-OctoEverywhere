@@ -20,7 +20,13 @@ class ThreadDebug:
                 for threadId, stack in sys._current_frames().items():
                     trace = ""
                     for filename, lineno, name, line in traceback.extract_stack(stack):
-                        trace += ", "+name
+                        parts = filename.split("\\")
+                        if len(parts) == 0:
+                            parts  = filename.split("/")
+                        if len(parts) > 0:
+                            trace += ", "+parts[len(parts)-1]+":"+name
+                        else:
+                            trace += ", "+filename+":"+name
                     logger.info("ThreadDump- Id: "+str(threadId) + " -> "+str(trace))
 
             except Exception as e:

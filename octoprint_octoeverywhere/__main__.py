@@ -54,8 +54,8 @@ if __name__ == '__main__':
     logger.addHandler(handler)
 
     # This is a tool to help track stuck or leaked threads.
-    #threadDebugger = ThreadDebug()
-    #threadDebugger.Start(logger, 30)
+    threadDebugger = ThreadDebug()
+    threadDebugger.Start(logger, 30)
 
     # Setup a signal handler to kill everything
     signal.signal(signal.SIGINT, SignalHandler)
