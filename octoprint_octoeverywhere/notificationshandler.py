@@ -185,19 +185,27 @@ class NotificationsHandler:
                     self.Logger.info("Found in progress obj "+ str(printTimeLeft))
                     return printTimeLeft
         except Exception as e:
-            self.Logger.error("Failed to find progress object in printer current data.")
+            self.Logger.error("Failed to find progress object in printer current data. "+str(e))
 
+        # If that fails, try to use the default OctoPrint estimate.
+        try:
+            jobData = self.OctoPrintPrinterObject.get_current_job()
+            self.Logger.info("test 2")
 
+            if "estimatedPrintTime" in jobData:
+                self.Logger.info("test 3")
+                printTimeEstSec = int(jobData["estimatedPrintTime"])
+                self.Logger.info("test 4 "+str(printTimeEstSec))
 
-        #         self._logger.info("Event Name "+str(event))
-        # for i in payload:
-        #     self._logger.info("event payload "+str(i) + " "+(str(payload[i])))
-        
-        # data = self._printer.get_current_data()
-        # for i in data:
-        #     self._logger.info("cur data "+str(i) + " "+(str(data[i])))
-            
-        # data = self._printer.get_current_job()
-        # for i in data:
-        #     self._logger.info("job data "+str(i) + " "+(str(data[i])))
+                # Compute how long this print has been running and subtract
+                # Sanity check the duration isn't longer than the ETA.
+                currentDurationSec = int(self._getCurrentDurationSec())
+                if currentDurationSec > printTimeEstSec:
+                    return -1
+                self.Logger.info("octoprint est "+str(printTimeEstSec - currentDurationSec))
+                return printTimeEstSec - currentDurationSec
+        except Exception as e:
+            self.Logger.error("Failed to find time estimate from OctoPrint. "+str(e))
 
+        # We failed.
+        return -1
