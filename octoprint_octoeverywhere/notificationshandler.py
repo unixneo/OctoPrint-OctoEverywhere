@@ -175,34 +175,28 @@ class NotificationsHandler:
         # Try to get the progress object from the current data. This is at least set by things like PrintTimeGenius and is more accurate.
         try:
             currentData = self.OctoPrintPrinterObject.get_current_data()
-            self.Logger.info("test ")
-
             if "progress" in currentData:
                 self.Logger.info("Progress "+str(currentData["progress"]))
-                #progressObj = json.load(currentData["progress"])
                 if "printTimeLeft" in currentData["progress"]:
-                    printTimeLeft = int(currentData["progress"]["printTimeLeft"])
-                    self.Logger.info("Found in progress obj "+ str(printTimeLeft))
-                    #return printTimeLeft
+                    # When the print is just starting, the printTimeLeft will be None.
+                    printTimeLeftSec = currentData["progress"]["printTimeLeft"]
+                    if printTimeLeftSec != None:
+                        printTimeLeft = int(float(currentData["progress"]["printTimeLeft"]))
+                        self.Logger.info("Found in progress obj "+ str(printTimeLeft))
+                        return printTimeLeft
         except Exception as e:
             self.Logger.error("Failed to find progress object in printer current data. "+str(e))
 
         # If that fails, try to use the default OctoPrint estimate.
         try:
             jobData = self.OctoPrintPrinterObject.get_current_job()
-            self.Logger.info("test 2")
-
             if "estimatedPrintTime" in jobData:
-                self.Logger.info("test 3")
                 printTimeEstSec = int(jobData["estimatedPrintTime"])
-                self.Logger.info("test 4 "+str(printTimeEstSec))
-
                 # Compute how long this print has been running and subtract
                 # Sanity check the duration isn't longer than the ETA.
                 currentDurationSec = int(float(self._getCurrentDurationSec()))
                 if currentDurationSec > printTimeEstSec:
-                    return -1
-                self.Logger.info("octoprint est "+str(printTimeEstSec - currentDurationSec))
+                    return 0
                 return printTimeEstSec - currentDurationSec
         except Exception as e:
             self.Logger.error("Failed to find time estimate from OctoPrint. "+str(e))
