@@ -179,11 +179,11 @@ class NotificationsHandler:
 
             if "progress" in currentData:
                 self.Logger.info("Progress "+str(currentData["progress"]))
-                progressObj = json.load(currentData["progress"])
-                if "printTimeLeft" in progressObj:
-                    printTimeLeft = int(progressObj["printTimeLeft"])
+                #progressObj = json.load(currentData["progress"])
+                if "printTimeLeft" in currentData["progress"]:
+                    printTimeLeft = int(currentData["progress"]["printTimeLeft"])
                     self.Logger.info("Found in progress obj "+ str(printTimeLeft))
-                    return printTimeLeft
+                    #return printTimeLeft
         except Exception as e:
             self.Logger.error("Failed to find progress object in printer current data. "+str(e))
 
@@ -199,7 +199,7 @@ class NotificationsHandler:
 
                 # Compute how long this print has been running and subtract
                 # Sanity check the duration isn't longer than the ETA.
-                currentDurationSec = int(self._getCurrentDurationSec())
+                currentDurationSec = int(float(self._getCurrentDurationSec()))
                 if currentDurationSec > printTimeEstSec:
                     return -1
                 self.Logger.info("octoprint est "+str(printTimeEstSec - currentDurationSec))
