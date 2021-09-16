@@ -20,7 +20,7 @@ class NotificationsHandler:
         self.CurrentFileName = ""
         self.CurrentPrintStartTime = time.time()
         self.CurrentProgressInt = 0
-        self.ZChangeCount = 0
+        self.HasSendFirstFewLayersMessage = False
 
     
     def SetPrinterId(self, printerId):
@@ -82,20 +82,30 @@ class NotificationsHandler:
 
     # Fired WHENEVER the z axis changes. 
     def OnZChange(self):
-        self.ZChangeCount += 1
-        # Sanity check
-        if self.ZChangeCount < 0:
-            # Set higher than what we send, so we don't send weird notifications
-            self.ZChangeCount = 10
 
-        # The first zchange happens when the printer is actually starting to print the first layer (after temp is reached and bed leveling is done)
-        # The second zchange will happen after the first layer is done.
-        # We report layers 1-5 so that the user has choice of what they want notifications for.
-        if self.ZChangeCount > 5:
+
+        # We can't found the number of times the z-height changes because if slicers use "z-hop" the z will change multiple times
+        # on the same layer. We can get the current z-offset, but we don't know the layer height of the print. So for that reason
+        # when the zchange goes above some threadhold, we fire the "first few layers" event. 
+        currentZOffset = self.GetCurrentZOffset()
+        self.Logger.info("currentZOffset "+str(currentZOffset))
+
+        
+        # If we have already sent the "first few layers" message there's nothing to do.
+        if self.HasSendFirstFewLayersMessage:
             return
 
-        self.Logger.info("Sending zchange notification. Layer:"+str(self.ZChangeCount))
-        self._sendEvent("zchange", {"Layer" : str(self.ZChangeCount), "FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
+        # Make sure we know it.
+        if currentZOffset == -1:
+            return
+
+        # Only fire once the z offset is greater than. Most layer heights are 0.1
+        if currentZOffset < 5.0:
+            return
+
+
+        # self.Logger.info("Sending zchange notification. Layer:"+str(self.ZChangeCount))
+        # self._sendEvent("zchange", {"Layer" : str(self.ZChangeCount), "FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
 
 
     # Fired when we get a M600 command from the printer to change the filament
@@ -145,14 +155,17 @@ class NotificationsHandler:
             args["PrinterId"] = self.PrinterId
             args["OctoKey"] = self.OctoKey
             args["Event"] = event
-            args["TimeRemaningSec"] = str(self.GetPrintTimeRemaningEstimateInSeconds())
+
+            # Always include the ETA, note this will be -1 if the time is unknown.
+            timeRemainEstStr =  str(self.GetPrintTimeRemaningEstimateInSeconds())
+            args["TimeRemaningSec"] = timeRemainEstStr
 
             # Make the request.
             r = requests.post(eventApiUrl, json=args)
 
             # Check for success.
             if r.status_code == 200:
-                self.Logger.info("NotificationsHandler successfully sent "+event)
+                self.Logger.info("NotificationsHandler successfully sent "+event+" time reaming est: "+str(timeRemainEstStr))
                 return True
 
             # On failure, log the issue.
@@ -182,7 +195,6 @@ class NotificationsHandler:
                     printTimeLeftSec = currentData["progress"]["printTimeLeft"]
                     if printTimeLeftSec != None:
                         printTimeLeft = int(float(currentData["progress"]["printTimeLeft"]))
-                        self.Logger.info("Found in progress obj "+ str(printTimeLeft))
                         return printTimeLeft
         except Exception as e:
             self.Logger.error("Failed to find progress object in printer current data. "+str(e))
@@ -202,4 +214,22 @@ class NotificationsHandler:
             self.Logger.error("Failed to find time estimate from OctoPrint. "+str(e))
 
         # We failed.
+        return -1
+
+    # Returns the current zoffset if known, otherwise -1.
+    def GetCurrentZOffset(self) -> float:
+        if self.OctoPrintPrinterObject == None:
+            return -1
+
+        # Try to get the current value from the data.
+        try:
+            currentData = self.OctoPrintPrinterObject.get_current_data()
+            if "currentZ" in currentData:
+                currentZ = float(currentData["currentZ"])
+                self.Logger.info("current Z "+str(currentZ))
+                return currentZ
+        except Exception as e:
+            self.Logger.error("Failed to find current z offset. "+str(e))
+
+        # Failed to find it.
         return -1
