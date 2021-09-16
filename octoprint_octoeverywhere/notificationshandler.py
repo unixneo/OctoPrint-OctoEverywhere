@@ -83,29 +83,26 @@ class NotificationsHandler:
     # Fired WHENEVER the z axis changes. 
     def OnZChange(self):
 
-
-        # We can't found the number of times the z-height changes because if slicers use "z-hop" the z will change multiple times
-        # on the same layer. We can get the current z-offset, but we don't know the layer height of the print. So for that reason
-        # when the zchange goes above some threadhold, we fire the "first few layers" event. 
-        currentZOffset = self.GetCurrentZOffset()
-        self.Logger.info("currentZOffset "+str(currentZOffset))
-
-        
         # If we have already sent the "first few layers" message there's nothing to do.
         if self.HasSendFirstFewLayersMessage:
             return
 
+        # We can't found the number of times the z-height changes because if slicers use "z-hop" the z will change multiple times
+        # on the same layer. We can get the current z-offset, but we don't know the layer height of the print. So for that reason
+        # when the zchange goes above some threadhold, we fire the "first few layers" event. 
+        currentZOffsetMM = self.GetCurrentZOffset()
+
         # Make sure we know it.
-        if currentZOffset == -1:
+        if currentZOffsetMM == -1:
             return
 
-        # Only fire once the z offset is greater than. Most layer heights are 0.1
-        if currentZOffset < 5.0:
+        # Only fire once the z offset is greater than. Most layer heights are 0.07 - 0.3.
+        if currentZOffsetMM < 3.1:
             return
 
-
-        # self.Logger.info("Sending zchange notification. Layer:"+str(self.ZChangeCount))
-        # self._sendEvent("zchange", {"Layer" : str(self.ZChangeCount), "FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
+        # Send the message.
+        self.HasSendFirstFewLayersMessage = True
+        self._sendEvent("firstfewlayersdone", {"ZOffsetMM" : str(currentZOffsetMM), "FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
 
 
     # Fired when we get a M600 command from the printer to change the filament
@@ -165,7 +162,7 @@ class NotificationsHandler:
 
             # Check for success.
             if r.status_code == 200:
-                self.Logger.info("NotificationsHandler successfully sent "+event+" time reaming est: "+str(timeRemainEstStr))
+                self.Logger.info("NotificationsHandler successfully sent '"+event+"'; ETA: "+str(timeRemainEstStr))
                 return True
 
             # On failure, log the issue.
