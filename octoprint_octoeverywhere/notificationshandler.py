@@ -1,14 +1,16 @@
 import requests
 import time
+import json
 
 class NotificationsHandler:
 
-    def __init__(self, logger):
+    def __init__(self, logger, octoPrintPrinterObject = None):
         self.Logger = logger
         # On init, set the key to empty.
         self.OctoKey = None
         self.PrinterId = None
         self.ProtocolAndDomain = "https://octoeverywhere.com"
+        self.OctoPrintPrinterObject = octoPrintPrinterObject
 
         # Since all of the commands don't send things we need, we will also track them.
         self.ResetForNewPrint()
@@ -143,6 +145,7 @@ class NotificationsHandler:
             args["PrinterId"] = self.PrinterId
             args["OctoKey"] = self.OctoKey
             args["Event"] = event
+            args["TimeRemaningSec"] = str(self.GetPrintTimeRemaningEstimateInSeconds())
 
             # Make the request.
             r = requests.post(eventApiUrl, json=args)
@@ -159,3 +162,42 @@ class NotificationsHandler:
             self.Logger.error("NotificationsHandler failed to send event code "+str(event)+". Exception: "+str(e))
 
         return False
+
+    # This function will get the estimated time remaning for the current print.
+    # It will first try to get a more accurate from plugins like PrintTimeGenius, otherwise it will fallback to the default OctoPrint total print time estimate.
+    # Returns -1 if the estimate is unknown.
+    def GetPrintTimeRemaningEstimateInSeconds(self) -> int:
+
+        # If the printer object isn't set, we can't get an estimate.
+        if self.OctoPrintPrinterObject == None:
+            return -1
+
+        # Try to get the progress object from the current data. This is at least set by things like PrintTimeGenius and is more accurate.
+        try:
+            currentData = self.OctoPrintPrinterObject.get_current_data()
+            self.Logger.info("test ")
+
+            if "progress" in currentData:
+                self.Logger.info("Progress "+str(currentData["progress"]))
+                progressObj = json.load(currentData["progress"])
+                if "printTimeLeft" in progressObj:
+                    printTimeLeft = int(progressObj["printTimeLeft"])
+                    self.Logger.info("Found in progress obj "+ str(printTimeLeft))
+                    return printTimeLeft
+        except Exception as e:
+            self.Logger.error("Failed to find progress object in printer current data.")
+
+
+
+        #         self._logger.info("Event Name "+str(event))
+        # for i in payload:
+        #     self._logger.info("event payload "+str(i) + " "+(str(payload[i])))
+        
+        # data = self._printer.get_current_data()
+        # for i in data:
+        #     self._logger.info("cur data "+str(i) + " "+(str(data[i])))
+            
+        # data = self._printer.get_current_job()
+        # for i in data:
+        #     self._logger.info("job data "+str(i) + " "+(str(data[i])))
+
