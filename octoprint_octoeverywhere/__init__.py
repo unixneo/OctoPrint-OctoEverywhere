@@ -236,6 +236,9 @@ class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
         elif event == "Waiting":
             self.NotificationHandler.OnWaiting()
 
+        self._logger.info("Event Name "+str(event))
+        for i in payload:
+            self._logger.info("event payload "+str(i) + " "+(str(payload[i])))
         
         data = self._printer.get_current_data()
         for i in data:
