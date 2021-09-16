@@ -236,6 +236,15 @@ class OctoeverywherePlugin(octoprint.plugin.StartupPlugin,
         elif event == "Waiting":
             self.NotificationHandler.OnWaiting()
 
+        
+        data = self._printer.get_current_data()
+        for i in data:
+            self._logger.info("cur data "+str(i) + " "+(str(data[i])))
+            
+        data = self._printer.get_current_job()
+        for i in data:
+            self._logger.info("job data "+str(i) + " "+(str(data[i])))
+
 
     def GetDictStringOrEmpty(self, dict, key):
         if dict[key] is None:
