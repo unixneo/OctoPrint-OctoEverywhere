@@ -134,13 +134,13 @@ class NotificationsHandler:
             snapshotUrl = ""
             flipH = False
             flipV = False
-            rotate = False
+            rotate90 = False
             if self.OctoPrintSettingsObject != None :
                 # This is the normal plugin case
                 snapshotUrl = self.OctoPrintSettingsObject.global_get(["webcam", "snapshot"])
-                flipH = self.OctoPrintSettingsObject.global_get(["webcam", "snapshot"])
-                flipV = self.OctoPrintSettingsObject.global_get(["webcam", "snapshot"])
-                rotate = self.OctoPrintSettingsObject.global_get(["webcam", "snapshot"])
+                flipH = self.OctoPrintSettingsObject.global_get(["webcam", "flipH"])
+                flipV = self.OctoPrintSettingsObject.global_get(["webcam", "flipV"])
+                rotate90 = self.OctoPrintSettingsObject.global_get(["webcam", "rotate90"])
             else:
                 # This is the dev case
                 snapshotUrl = "http://192.168.86.57/webcam/?action=snapshot"
@@ -155,10 +155,10 @@ class NotificationsHandler:
                 return None
 
             # Correct the image if needed.
-            if rotate or flipH or flipV:
+            if rotate90 or flipH or flipV:
                 # Update the image
                 pilImage = Image.open(io.BytesIO(snapshot))
-                if rotate:
+                if rotate90:
                     pilImage = pilImage.rotate(90)
                 if flipH:
                     pilImage = pilImage.transpose(Image.FLIP_LEFT_RIGHT)
