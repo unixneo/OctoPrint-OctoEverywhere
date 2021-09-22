@@ -25,8 +25,10 @@ class NotificationsHandler:
         self.CurrentFileName = ""
         self.CurrentPrintStartTime = time.time()
         self.CurrentProgressInt = 0
-        self.HasSendFirstFewLayersMessage = False
-
+        self.HasSendFirstLayerDoneMessage = False
+        # The following values are used to figure out when the first layer is done.
+        self.zOffsetLowestSeenMM = 1337.0
+        self.zOffsetNotAtLowestCount = 0
     
     def SetPrinterId(self, printerId):
         self.PrinterId = printerId
@@ -96,8 +98,8 @@ class NotificationsHandler:
 
     # Fired WHENEVER the z axis changes. 
     def OnZChange(self):
-        # If we have already sent the "first few layers" message there's nothing to do.
-        #if self.HasSendFirstFewLayersMessage:
+        # If we have already sent the first layer done message there's nothing to do.
+        #if self.HasSendFirstLayerDoneMessage:
         #    return
 
         # We can't found the number of times the z-height changes because if slicers use "z-hop" the z will change multiple times
@@ -106,17 +108,43 @@ class NotificationsHandler:
         currentZOffsetMM = self.GetCurrentZOffset()
         self.Logger.info("!! zchange! "+str(currentZOffsetMM))
 
+        # todo remove me
+        if self.HasSendFirstLayerDoneMessage:
+            return
+
         # Make sure we know it.
         if currentZOffsetMM == -1:
             return
 
-        # Only fire once the z offset is greater than. Most layer heights are 0.07 - 0.3.
-        if currentZOffsetMM < 3.1:
+        # The trick here is how we do figure out when the first layer is done with out knowing the print layer height
+        # or how the gcode is written to do zhops.
+        #
+        # Our current solution is to keep track of the lowest zvalue we have seen for this print.
+        # Everytime we don't see the zvalue be the lowest, we increment a counter. After n number of reports above the lowest value, we
+        # consider the first layer done because we haven't seen the printer return to the first layer height.
+        #
+        # Typically, the flow looks something like... 0.4 -> 0.2 -> 0.4 -> 0.2 -> 0.4 -> 0.5 -> 0.7 -> 0.5 -> 0.7...
+        # Where the layer hight is 0.2 (because it's the lowest first value) and the zhops are 0.4 or more.
+
+        # Since this is a float, avoid ==
+        if currentZOffsetMM > self.zOffsetLowestSeenMM - 0.01 and currentZOffsetMM < self.zOffsetLowestSeenMM + 0.01:
+            # The zOffset is the same as the lowest we have seen.
+            self.zOffsetNotAtLowestCount = 0
+        elif currentZOffsetMM < self.zOffsetLowestSeenMM:
+            # We found a new low, record it.
+            self.zOffsetLowestSeenMM = currentZOffsetMM
+            self.zOffsetNotAtLowestCount = 0        
+        else:
+            # The zOffset is higher than the lowest we have seen.
+            self.zOffsetNotAtLowestCount += 1
+
+        # After zOffsetNotAtLowestCount >= 2, we consider the first layer to be done.
+        if self.zOffsetNotAtLowestCount < 2:
             return
 
         # Send the message.
-        self.HasSendFirstFewLayersMessage = True
-        self._sendEvent("firstfewlayersdone", {"ZOffsetMM" : str(currentZOffsetMM) })
+        self.HasSendFirstLayerDoneMessage = True
+        self._sendEvent("firstlayerdone", {"ZOffsetMM" : str(currentZOffsetMM) })
 
 
     # Fired when we get a M600 command from the printer to change the filament
@@ -341,8 +369,8 @@ class NotificationsHandler:
         self.StopPingTimer()
 
         # Setup the new timer
-        intervalSec = 60 * 60 # Fire every hour at a min.
-        self.PingTimer = RepeatTimer(self.Logger, 10, self.PingTimerCallback)
+        intervalSec = 60 * 60 # Fire every hour.
+        self.PingTimer = RepeatTimer(self.Logger, intervalSec, self.PingTimerCallback)
         self.PingTimer.start()
 
     # Stops any running ping timer.
@@ -365,8 +393,7 @@ class NotificationsHandler:
         else:
             state = self.OctoPrintPrinterObject.get_state_id()
 
-        self.Logger.info("printer state state: "+state)
-
+        # Ensure the state is still printing or paused, if not we are done.
         if state != "PRINTING" and state != "PAUSED":
             self.Logger.info("Notification ping timer state doesn't seem to be printing, stopping timer. State: "+str(state))
             self.StopPingTimer()
