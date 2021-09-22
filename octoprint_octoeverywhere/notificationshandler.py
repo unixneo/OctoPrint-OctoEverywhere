@@ -99,18 +99,13 @@ class NotificationsHandler:
     # Fired WHENEVER the z axis changes. 
     def OnZChange(self):
         # If we have already sent the first layer done message there's nothing to do.
-        #if self.HasSendFirstLayerDoneMessage:
-        #    return
+        if self.HasSendFirstLayerDoneMessage:
+            return
 
         # We can't found the number of times the z-height changes because if slicers use "z-hop" the z will change multiple times
         # on the same layer. We can get the current z-offset, but we don't know the layer height of the print. So for that reason
         # when the zchange goes above some threadhold, we fire the "first few layers" event. 
         currentZOffsetMM = self.GetCurrentZOffset()
-        self.Logger.info("!! zchange! "+str(currentZOffsetMM))
-
-        # todo remove me
-        if self.HasSendFirstLayerDoneMessage:
-            return
 
         # Make sure we know it.
         if currentZOffsetMM == -1:
@@ -139,6 +134,7 @@ class NotificationsHandler:
             self.zOffsetNotAtLowestCount += 1
 
         # After zOffsetNotAtLowestCount >= 2, we consider the first layer to be done.
+        # This means we won't fire the event until we see two zmoves that are above the known min.
         if self.zOffsetNotAtLowestCount < 2:
             return
 
