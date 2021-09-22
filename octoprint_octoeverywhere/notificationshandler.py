@@ -55,16 +55,16 @@ class NotificationsHandler:
 
 
     # Fired when a print fails
-    def OnFailed(self, fileName, durationSec, reason):
+    def OnFailed(self, fileName, durationSecStr, reason):
         self.CurrentFileName = fileName
-        self._updateToKnownDuration(durationSec)
+        self._updateToKnownDuration(durationSecStr)
         self._sendEvent("failed", { "Reason": reason})
 
 
     # Fired when a print done
-    def OnDone(self, fileName, durationSec):
+    def OnDone(self, fileName, durationSecStr):
         self.CurrentFileName = fileName
-        self._updateToKnownDuration(durationSec)
+        self._updateToKnownDuration(durationSecStr)
         self._sendEvent("done")
 
         
@@ -134,7 +134,7 @@ class NotificationsHandler:
 
         # We use the current print file name, which will be empty string if not set correctly.
         self._sendEvent("progress")
-        
+
 
     # Fired every hour while a print is running
     def OnPrintTimerProgress(self):
@@ -205,10 +205,18 @@ class NotificationsHandler:
 
 
     # When OctoPrint tells us the duration, make sure we are in sync.
-    def _updateToKnownDuration(self, durationSec):
-        old = self.CurrentPrintStartTime
-        self.CurrentPrintStartTime = time.time() - durationSec
-        self.Logger.info("!! Duration updated old:"+str(old)+ " new:"+str(self.CurrentPrintStartTime))
+    def _updateToKnownDuration(self, durationSecStr):
+        # If the string is empty return.
+        if len(durationSecStr) == 0:
+            return
+
+        # If we fail this logic don't kill the event.
+        try:
+            old = self.CurrentPrintStartTime
+            self.CurrentPrintStartTime = time.time() - float(durationSecStr)
+            self.Logger.info("!! Duration updated old:"+str(old)+ " new:"+str(self.CurrentPrintStartTime))
+        except Exception as e:
+            self.Logger.error("_updateToKnownDuration exception "+str(e))   
 
 
     # Sends the event
