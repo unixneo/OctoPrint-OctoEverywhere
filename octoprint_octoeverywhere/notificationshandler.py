@@ -58,6 +58,7 @@ class NotificationsHandler:
     def OnFailed(self, fileName, durationSecStr, reason):
         self.CurrentFileName = fileName
         self._updateToKnownDuration(durationSecStr)
+        self.StopPingTimer()
         self._sendEvent("failed", { "Reason": reason})
 
 
@@ -65,6 +66,7 @@ class NotificationsHandler:
     def OnDone(self, fileName, durationSecStr):
         self.CurrentFileName = fileName
         self._updateToKnownDuration(durationSecStr)
+        self.StopPingTimer()
         self._sendEvent("done")
 
         
@@ -82,6 +84,7 @@ class NotificationsHandler:
 
     # Fired when OctoPrint or the printer hits an error.
     def OnError(self, error):
+        self.StopPingTimer()
         self._sendEvent("error", {"Error": error })
 
 
@@ -94,13 +97,14 @@ class NotificationsHandler:
     # Fired WHENEVER the z axis changes. 
     def OnZChange(self):
         # If we have already sent the "first few layers" message there's nothing to do.
-        if self.HasSendFirstFewLayersMessage:
-            return
+        #if self.HasSendFirstFewLayersMessage:
+        #    return
 
         # We can't found the number of times the z-height changes because if slicers use "z-hop" the z will change multiple times
         # on the same layer. We can get the current z-offset, but we don't know the layer height of the print. So for that reason
         # when the zchange goes above some threadhold, we fire the "first few layers" event. 
         currentZOffsetMM = self.GetCurrentZOffset()
+        self.Logger.info("!! zchange! "+str(currentZOffsetMM))
 
         # Make sure we know it.
         if currentZOffsetMM == -1:
@@ -212,9 +216,7 @@ class NotificationsHandler:
 
         # If we fail this logic don't kill the event.
         try:
-            old = self.CurrentPrintStartTime
             self.CurrentPrintStartTime = time.time() - float(durationSecStr)
-            self.Logger.info("!! Duration updated old:"+str(old)+ " new:"+str(self.CurrentPrintStartTime))
         except Exception as e:
             self.Logger.error("_updateToKnownDuration exception "+str(e))   
 
