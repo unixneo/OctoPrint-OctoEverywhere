@@ -34,11 +34,11 @@ class StatusChangeHandlerStub():
         self.Logger.info("OnPrimaryConnectionEstablished - Connected Accounts:"+str(connectedAccounts) + " - OctoKey:"+str(octoKey))
 
         # Send a test notifications if desired.
-        #handler = NotificationsHandler(self.Logger)
-        #handler.SetOctoKey(octoKey)
-        #handler.SetPrinterId(self.PrinterId)
-        #handler.SetServerProtocolAndDomain("http://127.0.0.1")
-        #handler.OnStarted("test.gcode")
+        handler = NotificationsHandler(self.Logger)
+        handler.SetOctoKey(octoKey)
+        handler.SetPrinterId(self.PrinterId)
+        handler.SetServerProtocolAndDomain("http://127.0.0.1")
+        handler.OnStarted("test.gcode")
         #handler.OnFailed("file name thats very long and too long for things.gcode", 20.2, "error")   
         #handler.OnDone("filename.gcode", 304458605)   
         #handler.OnPaused("filename.gcode") 

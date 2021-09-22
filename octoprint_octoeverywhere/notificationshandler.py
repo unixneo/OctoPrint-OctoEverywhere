@@ -3,6 +3,8 @@ import time
 import io
 from PIL import Image
 
+from .repeattimer import RepeatTimer
+
 class NotificationsHandler:
 
     def __init__(self, logger, octoPrintPrinterObject = None, octoPrintSettingsObject = None):
@@ -13,6 +15,7 @@ class NotificationsHandler:
         self.ProtocolAndDomain = "https://octoeverywhere.com"
         self.OctoPrintPrinterObject = octoPrintPrinterObject
         self.OctoPrintSettingsObject = octoPrintSettingsObject
+        self.PingTimer = None
 
         # Since all of the commands don't send things we need, we will also track them.
         self.ResetForNewPrint()
@@ -47,6 +50,7 @@ class NotificationsHandler:
     def OnStarted(self, fileName):
         self.ResetForNewPrint()
         self.CurrentFileName = fileName
+        self.SetupPingTimer()
         self._sendEvent("started", {"FileName": fileName})
 
 
@@ -291,3 +295,29 @@ class NotificationsHandler:
 
         # Failed to find it.
         return -1
+
+    # Starts a ping timer which is used to fire "every x mintues events".
+    def SetupPingTimer(self):
+        # First, stop any timer that's currently running.
+        self.StopPingTimer()
+
+        # Setup the new timer
+        self.PingTimer = RepeatTimer(self.Logger, 10, self.PingTimerCallback)
+        self.PingTimer.start()
+
+    # Stops any running ping timer.
+    def StopPingTimer(self):
+        # Capture locally
+        pingTimer = self.PingTimer
+        self.PingTimer = None
+        if pingTimer != None:
+            pingTimer.Stop()
+
+    # Fired when the ping timer fires.
+    def PingTimerCallback(self):
+        # Ensure there's an object
+        if self.OctoPrintPrinterObject == None:
+            self.Logger.warn("Notification ping timer doesn't have a OctoPrint printer object.")
+            return
+
+        self.Logger.info("state: "+self.OctoPrintPrinterObject.get_state_id())
