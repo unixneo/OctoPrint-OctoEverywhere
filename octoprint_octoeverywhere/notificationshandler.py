@@ -51,33 +51,38 @@ class NotificationsHandler:
         self.ResetForNewPrint()
         self.CurrentFileName = fileName
         self.SetupPingTimer()
-        self._sendEvent("started", {"FileName": fileName})
+        self._sendEvent("started")
 
 
     # Fired when a print fails
     def OnFailed(self, fileName, durationSec, reason):
-        self._sendEvent("failed", {"FileName": fileName, "DurationSec": str(durationSec), "ProgressPercentage" : str(self.CurrentProgressInt), "Reason": reason})
+        self.CurrentFileName = fileName
+        self._updateToKnownDuration(durationSec)
+        self._sendEvent("failed", { "Reason": reason})
 
 
     # Fired when a print done
     def OnDone(self, fileName, durationSec):
-        self._sendEvent("done", {"FileName": fileName, "DurationSec": str(durationSec) })
+        self.CurrentFileName = fileName
+        self._updateToKnownDuration(durationSec)
+        self._sendEvent("done")
 
         
     # Fired when a print is paused
     def OnPaused(self, fileName):
-        self._sendEvent("paused", {"FileName": fileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
+        self.CurrentFileName = fileName
+        self._sendEvent("paused")
 
 
     # Fired when a print is resumed
     def OnResume(self, fileName):
         self.CurrentFileName = fileName
-        self._sendEvent("resume", {"FileName": fileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
+        self._sendEvent("resume")
 
 
     # Fired when OctoPrint or the printer hits an error.
     def OnError(self, error):
-        self._sendEvent("error", {"Error": error, "FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
+        self._sendEvent("error", {"Error": error })
 
 
     # Fired when the waiting command is received from the printer.
@@ -107,12 +112,12 @@ class NotificationsHandler:
 
         # Send the message.
         self.HasSendFirstFewLayersMessage = True
-        self._sendEvent("firstfewlayersdone", {"ZOffsetMM" : str(currentZOffsetMM), "FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
+        self._sendEvent("firstfewlayersdone", {"ZOffsetMM" : str(currentZOffsetMM) })
 
 
     # Fired when we get a M600 command from the printer to change the filament
     def OnFilamentChange(self):
-        self._sendEvent("filamentchange", { "FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(self.CurrentProgressInt)})
+        self._sendEvent("filamentchange")
 
 
     # Fired when a print is making progress.
@@ -128,7 +133,15 @@ class NotificationsHandler:
             return
 
         # We use the current print file name, which will be empty string if not set correctly.
-        self._sendEvent("progress", {"FileName": self.CurrentFileName, "DurationSec" : self._getCurrentDurationSec(), "ProgressPercentage" : str(progressInt) })
+        self._sendEvent("progress")
+        
+
+    # Fired every hour while a print is running
+    def OnPrintTimerProgress(self):
+        # This event is fired by our internal timer only while prints are running.
+        # It will only fire every hour.
+        self._sendEvent("timerprogress")
+
 
     # If possible, gets a snapshot from the snapshot URL configured in OctoPrint.
     # If this fails for any reason, None is returned.
@@ -191,6 +204,13 @@ class NotificationsHandler:
         return str(time.time() - self.CurrentPrintStartTime)
 
 
+    # When OctoPrint tells us the duration, make sure we are in sync.
+    def _updateToKnownDuration(self, durationSec):
+        old = self.CurrentPrintStartTime
+        self.CurrentPrintStartTime = time.time() - durationSec
+        self.Logger.info("!! Duration updated old:"+str(old)+ " new:"+str(self.CurrentPrintStartTime))
+
+
     # Sends the event
     # Returns True on success, otherwise False
     def _sendEvent(self, event, args = None):
@@ -212,9 +232,18 @@ class NotificationsHandler:
             args["OctoKey"] = self.OctoKey
             args["Event"] = event
 
+            # Always add the file name
+            args["FileName"] = str(self.CurrentFileName)
+
             # Always include the ETA, note this will be -1 if the time is unknown.
             timeRemainEstStr =  str(self.GetPrintTimeRemaningEstimateInSeconds())
             args["TimeRemaningSec"] = timeRemainEstStr
+
+            # Always add the current progress
+            args["ProgressPercentage"] = str(self.CurrentProgressInt)
+
+            # Always add the current duration
+            args["DurationSec"] = str(self._getCurrentDurationSec())         
 
             # Also always include a snapshot if we can get one.
             files = {}
@@ -302,6 +331,7 @@ class NotificationsHandler:
         self.StopPingTimer()
 
         # Setup the new timer
+        intervalSec = 60 * 60 # Fire every hour at a min.
         self.PingTimer = RepeatTimer(self.Logger, 10, self.PingTimerCallback)
         self.PingTimer.start()
 
@@ -315,9 +345,22 @@ class NotificationsHandler:
 
     # Fired when the ping timer fires.
     def PingTimerCallback(self):
-        # Ensure there's an object
+        # Get the current state
+        # States can be found here:
+        # https://docs.octoprint.org/en/master/modules/printer.html#octoprint.printer.PrinterInterface.get_state_id
+        state = "UNKNOWN"
         if self.OctoPrintPrinterObject == None:
             self.Logger.warn("Notification ping timer doesn't have a OctoPrint printer object.")
+            state = "PRINTING"
+        else:
+            state = self.OctoPrintPrinterObject.get_state_id()
+
+        self.Logger.info("printer state state: "+state)
+
+        if state != "PRINTING" and state != "PAUSED":
+            self.Logger.info("Notification ping timer state doesn't seem to be printing, stopping timer. State: "+str(state))
+            self.StopPingTimer()
             return
 
-        self.Logger.info("state: "+self.OctoPrintPrinterObject.get_state_id())
+        # Fire the event.
+        self.OnPrintTimerProgress()       
